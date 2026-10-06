@@ -4,15 +4,22 @@ module instruction_decoder (
     output reg [3:0] write_addr, output reg reg_write, output reg alu_src_immediate,
     output reg [1:0] imm_select, output reg [3:0] alu_control, output reg halt
 );
+
     wire [4:0] opcode=instruction[31:27];
     localparam [3:0] ALU_ADD=4'h0, ALU_SUB=4'h1, ALU_AND=4'h2, ALU_OR=4'h3,
                      ALU_XOR=4'h4, ALU_NOR=4'h5, ALU_NOT=4'h6, ALU_SLL=4'h7,
                      ALU_SRL=4'h8, ALU_SRA=4'h9, ALU_SLT=4'hA, ALU_LUI=4'hC;
     localparam [1:0] IMM_SIGNED=2'd0, IMM_SHIFT=2'd1, IMM_LUI=2'd2;
+
     always @(*) begin
-        read_addr1=instruction[26:23]; read_addr2=instruction[22:19]; write_addr=4'd0;
-        reg_write=1'b0; alu_src_immediate=1'b0; imm_select=IMM_SIGNED;
-        alu_control=ALU_ADD; halt=1'b0;
+        read_addr1=instruction[26:23]; 
+        read_addr2=instruction[22:19]; 
+        write_addr=4'd0;
+        reg_write=1'b0; 
+        alu_src_immediate=1'b0; 
+        imm_select=IMM_SIGNED;
+        alu_control=ALU_ADD; 
+        halt=1'b0;
         case (opcode)
             5'b00000: begin write_addr=instruction[18:15]; reg_write=1; alu_control=ALU_ADD; end // ADD
             5'b00001: begin write_addr=instruction[18:15]; reg_write=1; alu_control=ALU_SUB; end // SUB

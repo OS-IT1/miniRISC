@@ -2,7 +2,7 @@
 module tb_minirisc_basic;
     reg clk=1'b0, rst=1'b1;
     wire [31:0] pc,instruction; wire halted;
-    minirisc_basic_top #(.ROM_INIT_FILE("program.hex")) dut
+    minirisc_basic_top dut
       (.clk(clk),.rst(rst),.pc(pc),.instruction(instruction),.halted(halted));
     always #5 clk=~clk;
     initial begin

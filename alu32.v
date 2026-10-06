@@ -9,10 +9,16 @@ module alu32 (
                      ALU_LUI=4'hC;
     always @(*) begin
         case (alu_control)
-            ALU_ADD: Y=A+B; ALU_SUB: Y=A-B; ALU_AND: Y=A&B; ALU_OR: Y=A|B;
-            ALU_XOR: Y=A^B; ALU_NOR: Y=~(A|B); ALU_NOT: Y=~A;
+            ALU_ADD: Y=A+B;
+            ALU_SUB: Y=A-B;
+            ALU_AND: Y=A&B;
+            ALU_OR: Y=A|B;
+            ALU_XOR: Y=A^B;
+            ALU_NOR: Y=~(A|B);
+            ALU_NOT: Y=~A;
             ALU_SLL: Y=A<<B[4:0]; // SLL and register-controlled SLA have identical bits.
-            ALU_SRL: Y=A>>B[4:0]; ALU_SRA: Y=$signed(A)>>>B[4:0];
+            ALU_SRL: Y=A>>B[4:0];
+            ALU_SRA: Y=$signed(A)>>>B[4:0];
             ALU_SLT: Y=($signed(A)<$signed(B)) ? 32'd1 : 32'd0;
             ALU_SGT: Y=($signed(A)>$signed(B)) ? 32'd1 : 32'd0;
             ALU_LUI: Y={B[15:0],16'b0};
