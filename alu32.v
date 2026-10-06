@@ -1,0 +1,68 @@
+module alu32 (
+    input  wire [31:0] A,
+    input  wire [31:0] B,
+    input  wire [3:0]  alu_control,
+    output reg  [31:0] Y
+);
+
+    always @(*) begin
+
+        case (alu_control)
+
+            4'b0000: begin
+                Y = A + B;
+            end
+
+            4'b0001: begin
+                Y = A - B;
+            end
+
+            4'b0010: begin
+                Y = A & B;
+            end
+
+            4'b0011: begin
+                Y = A | B;
+            end
+
+            4'b0100: begin
+                Y = A ^ B;
+            end
+
+            4'b0101: begin
+                Y = ~(A | B);
+            end
+
+            4'b0110: begin
+                Y = ~A;
+            end
+
+            4'b0111: begin
+                Y = A << B[4:0];
+            end
+
+            4'b1000: begin
+                Y = A >> B[4:0];
+            end
+
+            4'b1001: begin
+                Y = $signed(A) >>> B[4:0];
+            end
+
+            4'b1010: begin
+                Y = ($signed(A) < $signed(B)) ? 32'd1 : 32'd0;
+            end
+
+            4'b1011: begin
+                Y = ($signed(A) > $signed(B)) ? 32'd1 : 32'd0;
+            end
+
+            default: begin
+                Y = 32'b0;
+            end
+
+        endcase
+
+    end
+
+endmodule

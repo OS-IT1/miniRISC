@@ -1,0 +1,11 @@
+module immediate_extension (
+    input  wire [18:0] imm_in,
+    input  wire        zero_extend,
+    output wire [31:0] imm_out
+);
+
+    assign imm_out = zero_extend ?
+                     {13'b0, imm_in} :
+                     {{13{imm_in[18]}}, imm_in};
+
+endmodule
