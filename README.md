@@ -1,6 +1,6 @@
 # MiniRISC Assignment 1B
 
-This is the baseline 32-bit datapath for the supplied Assignment 1A ISA: PC (+4), synchronous Vivado-BRAM instruction ROM, decode, 16x32 register file, immediate generation, ALU-input mux, ALU and ALU-result write-back.
+This is the baseline 32-bit datapath for the ISA documented in `isa.txt`: PC (+4), synchronous Vivado-BRAM instruction ROM, decode, 16x32 register file, immediate generation, ALU-input mux, ALU and ALU-result write-back. The ALU and decoder support signed SLT and SGT comparisons.
 
 `program.hex` and `program.coe` execute ADDI, ADD, SUB, AND, SLL, SRL, signed SLT, an attempted R0 write, and HALT. `tb_minirisc_basic.v` self-checks the program, including simultaneous two-register reads and R0 protection.
 
