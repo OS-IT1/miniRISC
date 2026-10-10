@@ -2,7 +2,8 @@
 module instruction_decoder (
     input wire [31:0] instruction, output reg [3:0] read_addr1, output reg [3:0] read_addr2,
     output reg [3:0] write_addr, output reg reg_write, output reg alu_src_immediate,
-    output reg [1:0] imm_select, output reg [3:0] alu_control, output reg halt
+    output reg [1:0] imm_select, output reg [3:0] alu_control, output reg halt,
+    output reg mem_read, output reg mem_write, output reg mem_to_reg
 );
 
     wire [4:0] opcode=instruction[31:27];
@@ -21,6 +22,9 @@ module instruction_decoder (
         imm_select=IMM_SIGNED;
         alu_control=ALU_ADD; 
         halt=1'b0;
+        mem_read=1'b0;
+        mem_write=1'b0;
+        mem_to_reg=1'b0;
         case (opcode)
             5'b00000: begin write_addr=instruction[18:15]; reg_write=1; alu_control=ALU_ADD; end // ADD
             5'b00001: begin write_addr=instruction[18:15]; reg_write=1; alu_control=ALU_SUB; end // SUB
@@ -40,8 +44,10 @@ module instruction_decoder (
             5'b01111: begin write_addr=instruction[22:19]; reg_write=1; alu_control=ALU_SUB; alu_src_immediate=1; end // SUBI
             5'b10000: begin write_addr=instruction[22:19]; reg_write=1; alu_control=ALU_ADD; alu_src_immediate=1; end // MOV
             5'b10001: begin write_addr=instruction[22:19]; reg_write=1; alu_control=ALU_LUI; alu_src_immediate=1; imm_select=IMM_LUI; end // LUI
+            5'b10010: begin write_addr=instruction[22:19]; reg_write=1; alu_src_immediate=1; mem_read=1; mem_to_reg=1; end // LD: rt <- mem[rs1 + signext(offset)]
+            5'b10011: begin alu_src_immediate=1; mem_write=1; end // ST: mem[rs1 + signext(offset)] <- rt
             5'b11001: halt=1'b1; // HALT
-            default: ; // memory/control instructions and reserved opcodes have no side effect in Assignment 1B.
+            default: ; // branches and reserved opcodes are not implemented in this datapath.
         endcase
     end
 endmodule
