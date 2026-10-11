@@ -141,10 +141,17 @@ module tb_minirisc_basic;
         // Release reset off the active edge to avoid a race with the DUT.
         repeat(2) @(negedge clk); rst=0;
         await_halt;
-        expect_register(1,5); expect_register(2,7); expect_register(3,12);
-        expect_register(4,2); expect_register(5,5); expect_register(6,40);
-        expect_register(7,20); expect_register(8,32'hFFFFFFFF);
-        expect_register(10,1); expect_register(0,0);
+        // Check the original ALU program from program.hex before the LD/ST tests.
+        expect_register(1,5);              // ADDI: R1 = R0 + 5
+        expect_register(2,7);              // ADDI: R2 = R0 + 7
+        expect_register(3,12);             // ADD: R3 = R1 + R2 (two-register read)
+        expect_register(4,2);              // SUB: R4 = R2 - R1
+        expect_register(5,5);              // AND: R5 = R1 & R2
+        expect_register(6,40);             // SLL: R6 = R1 << 3
+        expect_register(7,20);             // SRL: R7 = R6 >> 1 (logical shift)
+        expect_register(8,32'hFFFFFFFF);   // ADDI: R8 = R0 + (-1), signed immediate
+        expect_register(10,1);             // SLT: signed R8 (-1) < R1 (5)
+        expect_register(0,0);              // R0 protection: ADDI to R0 is discarded
         check_halt_hold;
         $display("PASS: baseline ALU program and HALT hold");
 
