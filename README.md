@@ -39,14 +39,10 @@ iverilog -g2012 -s tb_minirisc_basic -o /tmp/minirisc_tb *.v simulation/*.v
 vvp /tmp/minirisc_tb
 ```
 
-The testbench first checks the supplied ALU program, then resets the CPU and
-loads a directed LD/ST program into the behavioral ROM. It checks signed
-positive/negative address offsets, store source selection, consecutive loads,
-load-dependent arithmetic and stores, a load whose base is its destination,
-word-address mapping, and R0 protection. Clock-edge checks verify that LD holds
-PC/instruction and suppresses write-back during issue, then writes synchronous
-RAM data and resumes fetch on the next edge. HALT checks cover PC/ROM holding,
-reset recovery, and suppression of following register and memory writes.
-Bounded waits and a watchdog turn a stalled CPU into a failing simulation.
-The simulation writes `minirisc_basic.vcd` for waveform inspection. These tests
-use the behavioral memory models, not the generated Vivado IP.
+The testbench checks the supplied ALU program, R0 protection, and HALT hold
+behavior. It reads architectural register state and observes top-level control
+signals; it does not access the ROM or RAM storage arrays. This lets the same
+testbench run with either the generated Vivado IP or the behavioral simulation
+models. The ROM must be initialized with `program.coe` in Vivado, or
+`program.hex` in the simulation model. The simulation writes
+`minirisc_basic.vcd` for waveform inspection.
