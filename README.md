@@ -1,8 +1,8 @@
-# MiniRISC Assignment 1B
+# MiniRISC Assignment 2A
 
-This is the MiniRISC 32-bit datapath for the ISA documented in `isa.txt`: PC (+4), synchronous instruction ROM, decode, 16x32 register file, immediate generation, ALU-input mux, ALU, data memory and write-back. The ALU and decoder support signed SLT and SGT comparisons. LD and ST use `rs1 + sign-extended 19-bit offset` as a byte effective address; the second register field is the load destination or store source.
+This is the MiniRISC 32-bit datapath for the ISA documented in `isa.txt`: PC (+4), synchronous instruction ROM, decode, 16x32 register file, immediate generation, ALU-input mux, ALU, data memory and write-back. The ALU and decoder support signed SLT and SGT comparisons. LD and ST use `rs1 + sign-extended 19-bit offset` as a word effective address; the second register field is the load destination or store source.
 
-`program.hex` and `program.coe` execute ADDI, ADD, SUB, AND, SLL, SRL, signed SLT, an attempted R0 write, and HALT. `tb_minirisc_basic.v` self-checks the program, including simultaneous two-register reads and R0 protection.
+`program.hex` and `program.coe` run the Assignment 2A demonstration: initialize base/source registers, load word 5, store 99 to word 5, load it back, then halt. `data.coe` initializes words 0 through 7 to 10, 20, ..., 80.
 
 ## Vivado instruction ROM
 
@@ -20,9 +20,9 @@ The byte-addressed PC becomes the ROM word address `PC[9:2]`. For behavioral sim
 - Enable Port A (`ena`); keep byte write enables disabled so `wea` is one bit
 - Keep the optional output register disabled
 - Use ports `clka`, `ena`, `wea`, `addra[7:0]`, `dina[31:0]`, `douta[31:0]`
-- Read-during-write mode: **No Change**; no initialization file is needed unless you want preset data
+- Read-during-write mode: **No Change**; initialize with `data.coe` for this assignment's deterministic test
 
-The CPU uses effective address bits `[9:2]`, so memory covers 1 KiB of byte addresses and accesses aligned words; the low two address bits are ignored. Add `simulation/data_ram_model.v` to behavioral simulation and exclude it from synthesis when using the generated IP.
+The assignment uses word addresses: each ALU effective address selects one 32-bit word directly through `addra[7:0]`. Add `simulation/data_ram_model.v` to behavioral simulation and exclude it from synthesis when using the generated IP. Initialize the generated IP with `data.coe` for the required deterministic demonstration.
 
 **Timing behavior:** disabling the optional output register does not make a Block RAM read asynchronous. `douta` updates after the active clock edge. The top-level controller therefore gives LD two execute phases: first it issues the address and holds the PC and instruction while BRAM reads; next it writes `douta` to the destination register and resumes fetching. Other implemented instructions, including ST, remain single-cycle.
 
@@ -39,10 +39,10 @@ iverilog -g2012 -s tb_minirisc_basic -o /tmp/minirisc_tb *.v simulation/*.v
 vvp /tmp/minirisc_tb
 ```
 
-The testbench checks the supplied ALU program, R0 protection, and HALT hold
-behavior. It reads architectural register state and observes top-level control
-signals; it does not access the ROM or RAM storage arrays. This lets the same
-testbench run with either the generated Vivado IP or the behavioral simulation
-models. The ROM must be initialized with `program.coe` in Vivado, or
-`program.hex` in the simulation model. The simulation writes
-`minirisc_basic.vcd` for waveform inspection.
+The testbench checks the Assignment 2A load, store, and read-back cases. It
+checks register results and observes the BRAM interface; it never accesses the
+ROM or RAM storage arrays. This lets it run with generated Vivado IP or the
+behavioral models. Initialize the ROM and RAM IPs with `program.coe` and
+`data.coe`; the simulation ROM model reads `program.hex` and the data RAM model
+starts with the same eight values. The VCD includes the DUT signals for the
+waveform requirements, and the simulation writes `minirisc_basic.vcd`.

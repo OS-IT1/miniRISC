@@ -87,7 +87,9 @@ module minirisc_basic_top (
         .clka  (clk),
         .ena   ((mem_read & ~load_wait) | mem_write),
         .wea   (mem_write & ~rst & ~halted_reg & ~halt_instruction),
-        .addra (alu_result[9:2]),
+        // Assignment 2A uses word addresses: each ALU result selects a
+        // complete 32-bit data-memory word.
+        .addra (alu_result[7:0]),
         .dina  (read_data2),
         .douta (data_memory_read)
     );

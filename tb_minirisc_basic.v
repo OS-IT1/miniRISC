@@ -5,9 +5,9 @@ module tb_minirisc_basic;
     wire [31:0] pc;
     wire [31:0] instruction;
     wire halted;
-    integer cycles;
-    reg [31:0] halt_pc;
-    reg [31:0] halt_instruction;
+    integer cycles = 0;
+    integer load_count = 0;
+    integer store_count = 0;
 
     minirisc_basic_top dut (
         .clk(clk), .rst(rst), .pc(pc), .instruction(instruction), .halted(halted)
@@ -15,7 +15,6 @@ module tb_minirisc_basic;
 
     always #5 clk = ~clk;
 
-    // Architectural register checks are independent of the Vivado BRAM IP.
     task expect_register;
         input [3:0] address;
         input [31:0] expected;
@@ -26,56 +25,70 @@ module tb_minirisc_basic;
         end
     endtask
 
-    task await_halt;
-        begin
-            cycles = 0;
-            while (halted !== 1'b1 && cycles < 100) begin
-                @(posedge clk); #1;
-                cycles = cycles + 1;
+    // Observe the CPU-to-BRAM interface only. The testbench deliberately does
+    // not inspect or modify the storage array inside either memory IP/model.
+    always @(posedge clk) begin
+        if (!rst && !halted) begin
+            if (dut.load_issue) begin
+                if (dut.dmem.ena !== 1'b1 || dut.dmem.wea !== 1'b0)
+                    $fatal(1, "LD must enable BRAM read without write enable");
+                if (load_count == 0 && dut.dmem.addra !== 8'd5)
+                    $fatal(1, "Case 1 LD address: expected word 5, got %0d", dut.dmem.addra);
+                if (load_count == 1 && dut.dmem.addra !== 8'd5)
+                    $fatal(1, "Case 3 LD address: expected word 5, got %0d", dut.dmem.addra);
+                #1;
+                if (dut.load_wait !== 1'b1)
+                    $fatal(1, "LD must wait for synchronous BRAM data");
+                if (load_count == 0 && dut.data_memory_read !== 32'd60)
+                    $fatal(1, "Case 1 BRAM data: expected 60, got %h", dut.data_memory_read);
+                if (load_count == 1 && dut.data_memory_read !== 32'd99)
+                    $fatal(1, "Case 3 BRAM data: expected 99, got %h", dut.data_memory_read);
+                load_count = load_count + 1;
             end
-            if (halted !== 1'b1) $fatal(1, "HALT timeout after 100 cycles");
+
+            if (dut.mem_write) begin
+                if (dut.dmem.ena !== 1'b1 || dut.dmem.wea !== 1'b1 ||
+                    dut.dmem.addra !== 8'd5 || dut.dmem.dina !== 32'd99)
+                    $fatal(1, "Case 2 ST expected BRAM write addr=5 data=99; got en=%b we=%b addr=%0d data=%h",
+                        dut.dmem.ena, dut.dmem.wea, dut.dmem.addra, dut.dmem.dina);
+                if (dut.rf.write_enable !== 1'b0)
+                    $fatal(1, "ST must not write the register file");
+                store_count = store_count + 1;
+            end
         end
-    endtask
+    end
 
     initial begin
+        // Includes clock/reset, PC/instruction, decoded fields, register
+        // operands, immediate, effective address, BRAM interface and WB path.
         $dumpfile("minirisc_basic.vcd");
         $dumpvars(0, tb_minirisc_basic);
 
-        // The ROM image is supplied through the Vivado IP initialization
-        // file (program.coe), or program.hex in the simulation ROM model.
         repeat (2) @(negedge clk);
         rst = 1'b0;
-        await_halt;
 
-        expect_register(1, 5);             // ADDI
-        expect_register(2, 7);             // ADDI
-        expect_register(3, 12);            // ADD
-        expect_register(4, 2);             // SUB
-        expect_register(5, 5);             // AND
-        expect_register(6, 40);            // SLL
-        expect_register(7, 20);            // SRL
-        expect_register(8, 32'hFFFFFFFF);  // signed immediate
-        expect_register(10, 1);            // signed SLT
-        expect_register(0, 0);             // R0 protection
-
-        if (instruction !== 32'hC8000000)
-            $fatal(1, "ROM did not remain on HALT");
-        // The ROM image may be generated or padded differently by Vivado.
-        // Check that HALT holds the address it was fetched from rather than
-        // assuming a particular instruction index in the initialized image.
-        halt_pc = pc;
-        halt_instruction = instruction;
-        repeat (4) begin
+        while (halted !== 1'b1 && cycles < 100) begin
             @(posedge clk); #1;
-            if (halted !== 1'b1 || pc !== halt_pc ||
-                instruction !== halt_instruction || dut.imem.ena !== 1'b0 ||
-                dut.rf.write_enable !== 1'b0 || dut.dmem.wea !== 1'b0)
-                $fatal(1, "HALT hold failed: pc=%h expected=%h instruction=%h halted=%b imem.ena=%b rf.we=%b dmem.wea=%b",
-                    pc, halt_pc, instruction, halted, dut.imem.ena,
-                    dut.rf.write_enable, dut.dmem.wea);
+            cycles = cycles + 1;
         end
+        if (halted !== 1'b1) $fatal(1, "HALT timeout after 100 cycles");
 
-        $display("PASS: baseline ALU program and HALT hold");
+        // Case 1: R2=2, LD R4,3(R2) -> R4=M[5]=60.
+        expect_register(2, 2);
+        expect_register(4, 60);
+
+        // Case 2: R5=1, R6=99, ST R6,4(R5) -> M[5]=99.
+        expect_register(5, 1);
+        expect_register(6, 99);
+
+        // Case 3: LD R7,4(R5) -> R7=M[5]=99 verifies the store by read-back.
+        expect_register(7, 99);
+        if (load_count != 2 || store_count != 1)
+            $fatal(1, "Expected 2 loads/1 store, observed %0d/%0d", load_count, store_count);
+        if (instruction !== 32'hC8000000)
+            $fatal(1, "Expected HALT instruction, got %h", instruction);
+
+        $display("PASS: Assignment 2A load, store and read-back cases");
         $finish;
     end
 
