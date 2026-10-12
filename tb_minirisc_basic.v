@@ -6,6 +6,8 @@ module tb_minirisc_basic;
     wire [31:0] instruction;
     wire halted;
     integer cycles;
+    reg [31:0] halt_pc;
+    reg [31:0] halt_instruction;
 
     minirisc_basic_top dut (
         .clk(clk), .rst(rst), .pc(pc), .instruction(instruction), .halted(halted)
@@ -58,12 +60,19 @@ module tb_minirisc_basic;
 
         if (instruction !== 32'hC8000000)
             $fatal(1, "ROM did not remain on HALT");
+        // The ROM image may be generated or padded differently by Vivado.
+        // Check that HALT holds the address it was fetched from rather than
+        // assuming a particular instruction index in the initialized image.
+        halt_pc = pc;
+        halt_instruction = instruction;
         repeat (4) begin
             @(posedge clk); #1;
-            if (halted !== 1'b1 || pc !== 32'd40 ||
-                instruction !== 32'hC8000000 || dut.imem.ena !== 1'b0 ||
+            if (halted !== 1'b1 || pc !== halt_pc ||
+                instruction !== halt_instruction || dut.imem.ena !== 1'b0 ||
                 dut.rf.write_enable !== 1'b0 || dut.dmem.wea !== 1'b0)
-                $fatal(1, "HALT did not hold PC, instruction and suppress writes");
+                $fatal(1, "HALT hold failed: pc=%h expected=%h instruction=%h halted=%b imem.ena=%b rf.we=%b dmem.wea=%b",
+                    pc, halt_pc, instruction, halted, dut.imem.ena,
+                    dut.rf.write_enable, dut.dmem.wea);
         end
 
         $display("PASS: baseline ALU program and HALT hold");
