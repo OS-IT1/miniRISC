@@ -5,6 +5,21 @@ module tb_minirisc_basic;
     wire [31:0] pc;
     wire [31:0] instruction;
     wire halted;
+    // Named waveform probes for the load datapath. These aliases keep the
+    // requested signals easy to find in a VCD viewer.
+    wire [3:0] decoded_base = dut.rs1;
+    wire [3:0] decoded_source = dut.rs2;
+    wire [3:0] decoded_destination = dut.rd;
+    wire [31:0] base_register_value = dut.read_data1;
+    wire [31:0] extended_offset = dut.immediate;
+    wire [31:0] effective_address = dut.alu_result;
+    wire [7:0] data_bram_address = dut.dmem.addra;
+    wire [31:0] data_bram_write_data = dut.dmem.dina;
+    wire [31:0] data_bram_read_data = dut.dmem.douta;
+    wire data_bram_write_enable = dut.dmem.wea;
+    wire register_write_enable = dut.rf.write_enable;
+    wire write_back_select = dut.mem_to_reg;
+    wire [31:0] destination_register_value = dut.rf.registers[dut.rd];
     integer cycles = 0;
     integer load_count = 0;
     integer store_count = 0;
@@ -59,8 +74,8 @@ module tb_minirisc_basic;
     end
 
     initial begin
-        // Includes clock/reset, PC/instruction, decoded fields, register
-        // operands, immediate, effective address, BRAM interface and WB path.
+        // Dump the full hierarchy (including the named probes above) so the
+        // clock/reset, fetch, decode, address, BRAM, and LD write-back are visible.
         $dumpfile("minirisc_basic.vcd");
         $dumpvars(0, tb_minirisc_basic);
 
