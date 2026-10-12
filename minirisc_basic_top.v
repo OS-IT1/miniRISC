@@ -48,7 +48,8 @@ module minirisc_basic_top (
     // Byte-addressed PC: a 256-word ROM receives the word address PC[9:2].
     instruction_bram_rom imem (
         .clka  (clk),
-        .ena   (advance_fetch),
+        // Fetch during reset to replace a parked HALT word before restarting.
+        .ena   (rst | advance_fetch),
         .addra (pc[9:2]),
         .douta (instruction)
     );

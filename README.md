@@ -27,3 +27,26 @@ The CPU uses effective address bits `[9:2]`, so memory covers 1 KiB of byte addr
 **Timing behavior:** disabling the optional output register does not make a Block RAM read asynchronous. `douta` updates after the active clock edge. The top-level controller therefore gives LD two execute phases: first it issues the address and holds the PC and instruction while BRAM reads; next it writes `douta` to the destination register and resumes fetching. Other implemented instructions, including ST, remain single-cycle.
 
 HALT also holds the PC and disables the instruction ROM on its recognition edge. This keeps the synchronous ROM output parked on the HALT word instead of replacing it with the following instruction. `halted` remains asserted until reset.
+During reset the instruction ROM is enabled to replace a parked HALT word and
+allow execution to restart from address zero.
+
+## Run the self-checking testbench
+
+With Icarus Verilog installed, run from this directory:
+
+```sh
+iverilog -g2012 -s tb_minirisc_basic -o /tmp/minirisc_tb *.v simulation/*.v
+vvp /tmp/minirisc_tb
+```
+
+The testbench first checks the supplied ALU program, then resets the CPU and
+loads a directed LD/ST program into the behavioral ROM. It checks signed
+positive/negative address offsets, store source selection, consecutive loads,
+load-dependent arithmetic and stores, a load whose base is its destination,
+word-address mapping, and R0 protection. Clock-edge checks verify that LD holds
+PC/instruction and suppresses write-back during issue, then writes synchronous
+RAM data and resumes fetch on the next edge. HALT checks cover PC/ROM holding,
+reset recovery, and suppression of following register and memory writes.
+Bounded waits and a watchdog turn a stalled CPU into a failing simulation.
+The simulation writes `minirisc_basic.vcd` for waveform inspection. These tests
+use the behavioral memory models, not the generated Vivado IP.
