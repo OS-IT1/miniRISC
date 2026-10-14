@@ -1,7 +1,4 @@
-MiniRISC PC-relative branch convention
-
-BEQ and BNE use a signed 19-bit offset in instruction[18:0], measured
-in instruction words. The branch base is the sequential next instruction.
+BEQ and BNE use a signed 19-bit offset in instruction[18:0], measured in instruction words. The branch base is the sequential next instruction.
 
 The RTL stores PC as a byte address, so:
   Sequential next PC = PC + 4
