@@ -1,0 +1,19 @@
+MiniRISC PC-relative branch convention
+
+BEQ and BNE use a signed 19-bit offset in instruction[18:0], measured
+in instruction words. The branch base is the sequential next instruction.
+
+The RTL stores PC as a byte address, so:
+  Sequential next PC = PC + 4
+  Branch target = PC + 4 + (sign_extend(offset) << 2)
+
+Equivalently, in word addresses:
+  Target = current instruction word address + 1 + signed offset
+
+BEQ takes the branch when the two source-register values are equal;
+BNE takes it when they are unequal. An untaken branch advances to PC + 4.
+Positive offsets branch forward; negative offsets branch backward.
+
+Example: the BNE at word 7 (byte PC 28) has offset -5.
+Its target is word 7 + 1 - 5 = 3, or byte address 12.
+The instruction BRAM receives the word address through rom_pc[9:2].
