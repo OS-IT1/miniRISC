@@ -26,3 +26,32 @@ vvp /tmp/minirisc_tb +PROGRAM=program.hex
 ```
 
 The simulation-only BRAM models are in `simulation/`; exclude them from synthesis and use the generated Vivado IP instead. `tb_minirisc_basic.v` writes `minirisc_basic.vcd`, with named probes for the assignment's required waveform signals, and checks the loop results, branch PC choices, memory transactions, and multiple HALT cycles.
+
+## Assignment 4 verification and remaining submission items
+
+Section 10 is demonstrated by the existing 11-word program: initialize R1=3
+and R2=1, MOVE R0 into R3, then loop over ADD, ST to word 5, LD into R4,
+SUBI, and BNE with offset -5. The three iterations store and reload 1, 2,
+and 3. The final BNE and the following BEQ are not taken; NOP and HALT finish
+the program at byte PC 40. `program.hex`, `program_branch.hex`, and
+`program.coe` contain the same instruction words.
+
+Section 12 signals are mirrored into temporary `reg` variables in the
+testbench by a combinational block, so they remain live between clock edges.
+These include clock/reset, FSM state, PC/instruction/opcode, source values,
+immediate and raw branch offset, ALU result, branch condition/target/decision,
+data-BRAM address/read data/write enable, register write enable/write-back,
+and halt. Additional probes show register addresses, ALU control, memory
+write data/enable, and PC selection.
+
+Assertions verify load issue/commit timing and every load result, branch
+conditions and PC updates, NOP register preservation, instruction counts,
+final register values, and PC/instruction/register/write-enable preservation
+for three clocks after HALT. The testbench is specific to the demonstration
+program; a different `+PROGRAM` requires corresponding expected results.
+
+The repository still needs an updated architecture diagram (including the
+future Booth multiplier connection) and a full instruction/control table for
+submission. `isa.txt` is an opcode/type table, not the full control table.
+Vivado-generated BRAM IP and its configuration must also be checked in Vivado;
+the behavioral models only verify the documented one-cycle BRAM interface.
