@@ -5,9 +5,12 @@ module instruction_rom (
     output reg [31:0] douta
 );
     reg [31:0] memory [0:255];
+    reg [1023:0] program_file;
     initial begin
         douta=32'b0;
-        $readmemh("program.hex",memory);
+        if (!$value$plusargs("PROGRAM=%s", program_file))
+            program_file = "program.hex";
+        $readmemh(program_file,memory);
     end
     // One-cycle synchronous read, matching the configured BRAM IP.
     always @(posedge clka)

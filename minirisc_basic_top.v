@@ -1,4 +1,4 @@
-// Datapath: single-cycle instructions plus a two-phase BRAM load.
+// Baseline single-cycle MiniRISC datapath with synchronous BRAM load control.
 module minirisc_basic_top (
     input  wire        clk,
     input  wire        rst,
@@ -6,51 +6,58 @@ module minirisc_basic_top (
     output wire [31:0] instruction,
     output wire        halted
 );
+    localparam [1:0] PC_SEQUENTIAL = 2'b00;
+    localparam [1:0] PC_BRANCH     = 2'b01;
+    localparam [1:0] PC_JUMP       = 2'b10;
+    localparam [1:0] PC_REGISTER   = 2'b11;
 
-    wire [3:0]  rs1;
-    wire [3:0]  rs2;
-    wire [3:0]  rd;
-    wire [3:0]  alu_control;
-    wire        reg_write;
-    wire        alu_src_immediate;
-    wire        halt_instruction;
-    wire        mem_read;
-    wire        mem_write;
-    wire        mem_to_reg;
-    wire [1:0]  imm_select;
-    wire [31:0] read_data1;
-    wire [31:0] read_data2;
-    wire [31:0] immediate;
-    wire [31:0] alu_operand_b;
-    wire [31:0] alu_result;
-    wire [31:0] data_memory_read;
-    wire [31:0] register_write_data;
-    wire        load_issue;
-    wire        advance_fetch;
-    reg         halted_reg;
-    reg         load_wait;
+    wire [3:0] rs1, rs2, rd, alu_control;
+    wire reg_write, alu_src_immediate, halt_instruction;
+    wire mem_read, mem_write, mem_to_reg, nop;
+    wire [1:0] imm_select, branch_kind;
+    wire jump, jump_register;
+    wire [31:0] read_data1, read_data2, immediate, alu_operand_b;
+    wire [31:0] alu_result, data_memory_read, register_write_data;
+    wire [31:0] branch_pc, jump_pc, next_pc, rom_pc;
+    wire [1:0] pc_select;
+    wire branch_taken;
+    wire execute_instruction, load_issue, load_commit;
+    wire pc_write, rom_enable;
+    wire load_wait;
 
-    // A BRAM load takes two execute phases: issue the address/read, then
-    // write the registered BRAM output while fetching the following word.
-    assign load_issue = mem_read & ~load_wait;
-    // Hold both PC and synchronous instruction ROM while a load is in flight.
-    // Also hold the ROM output on HALT so it remains parked on the HALT word.
-    assign advance_fetch = ~halted_reg & ~halt_instruction & ~load_issue;
+    // Keep the original waveform/testbench probe name for the load wait state.
+    assign load_wait = load_commit;
 
-    // HALT suppresses the increment on the HALT cycle itself, holding its PC.
+    // PC is the address of the instruction being executed. The PC mux feeds
+    // the next fetch address to the synchronous ROM on the same clock edge.
+    assign branch_pc = pc + 32'd4 + ({{13{instruction[18]}}, instruction[18:0]} << 2);
+    assign jump_pc = {{3{1'b0}}, instruction[26:0], 2'b00};
+    assign rom_pc = rst ? pc : (pc_write ? next_pc : pc);
+    assign pc_select = jump_register ? PC_REGISTER :
+                       jump ? PC_JUMP :
+                       (branch_taken ? PC_BRANCH : PC_SEQUENTIAL);
+
+    pc_select_mux pc_mux (
+        .select       (pc_select),
+        .sequential_pc(pc + 32'd4),
+        .branch_pc    (branch_pc),
+        .jump_pc      (jump_pc),
+        .register_pc  (read_data1),
+        .next_pc      (next_pc)
+    );
+
     pc_unit pc0 (
         .clk    (clk),
         .rst    (rst),
-        .enable (advance_fetch),
+        .enable (pc_write),
+        .next_pc(next_pc),
         .pc     (pc)
     );
 
-    // Byte-addressed PC: a 256-word ROM receives the word address PC[9:2].
     instruction_bram_rom imem (
         .clka  (clk),
-        // Fetch during reset to replace a parked HALT word before restarting.
-        .ena   (rst | advance_fetch),
-        .addra (pc[9:2]),
+        .ena   (rom_enable),
+        .addra (rom_pc[9:2]),
         .douta (instruction)
     );
 
@@ -66,7 +73,11 @@ module minirisc_basic_top (
         .halt              (halt_instruction),
         .mem_read          (mem_read),
         .mem_write         (mem_write),
-        .mem_to_reg        (mem_to_reg)
+        .mem_to_reg        (mem_to_reg),
+        .branch_kind       (branch_kind),
+        .jump              (jump),
+        .jump_register     (jump_register),
+        .nop               (nop)
     );
 
     register_file_16x32 rf (
@@ -76,19 +87,16 @@ module minirisc_basic_top (
         .read_addr2   (rs2),
         .read_data1   (read_data1),
         .read_data2   (read_data2),
-        .write_enable (reg_write & ~halted_reg & ~halt_instruction & ~load_issue),
+        .write_enable ((execute_instruction & reg_write & ~mem_read & ~halt_instruction) |
+                       (load_commit & mem_to_reg)),
         .write_addr   (rd),
         .write_data   (register_write_data)
     );
 
-    // The ALU result is a byte effective address. The BRAM output register
-    // captures the word on the LD issue edge and holds it for write-back.
     data_bram_ram dmem (
         .clka  (clk),
-        .ena   ((mem_read & ~load_wait) | mem_write),
-        .wea   (mem_write & ~rst & ~halted_reg & ~halt_instruction),
-        // Assignment 2A uses word addresses: each ALU result selects a
-        // complete 32-bit data-memory word.
+        .ena   (load_issue | (execute_instruction & mem_write)),
+        .wea   (execute_instruction & mem_write & ~rst),
         .addra (alu_result[7:0]),
         .dina  (read_data2),
         .douta (data_memory_read)
@@ -113,24 +121,26 @@ module minirisc_basic_top (
         .A           (read_data1),
         .B           (alu_operand_b),
         .alu_control (alu_control),
-        .Y           (alu_result)
+        .Y            (alu_result)
     );
 
-    always @(posedge clk) begin
-        if (rst) begin
-            halted_reg <= 1'b0;
-            load_wait <= 1'b0;
-        end else begin
-            if (halt_instruction)
-                halted_reg <= 1'b1;
+    branch_unit branch (
+        .branch_kind   (branch_kind),
+        .register_value1(read_data1),
+        .register_value2(read_data2),
+        .branch_taken  (branch_taken)
+    );
 
-            if (load_issue)
-                load_wait <= 1'b1;
-            else if (load_wait)
-                load_wait <= 1'b0;
-        end
-    end
-
-    assign halted = halted_reg;
-
+    baseline_control_unit control (
+        .clk                 (clk),
+        .rst                 (rst),
+        .mem_read            (mem_read),
+        .halt_instruction    (halt_instruction),
+        .execute_instruction (execute_instruction),
+        .load_issue          (load_issue),
+        .load_commit         (load_commit),
+        .pc_write            (pc_write),
+        .rom_enable          (rom_enable),
+        .halted              (halted)
+    );
 endmodule

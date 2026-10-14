@@ -1,9 +1,21 @@
 // Decoder for the opcode map documented in isa.txt.
 module instruction_decoder (
-    input wire [31:0] instruction, output reg [3:0] read_addr1, output reg [3:0] read_addr2,
-    output reg [3:0] write_addr, output reg reg_write, output reg alu_src_immediate,
-    output reg [1:0] imm_select, output reg [3:0] alu_control, output reg halt,
-    output reg mem_read, output reg mem_write, output reg mem_to_reg
+    input wire [31:0] instruction,
+    output reg [3:0] read_addr1,
+    output reg [3:0] read_addr2,
+    output reg [3:0] write_addr,
+    output reg reg_write,
+    output reg alu_src_immediate,
+    output reg [1:0] imm_select,
+    output reg [3:0] alu_control,
+    output reg halt,
+    output reg mem_read,
+    output reg mem_write,
+    output reg mem_to_reg,
+    output reg [1:0] branch_kind,
+    output reg jump,
+    output reg jump_register,
+    output reg nop
 );
 
     wire [4:0] opcode=instruction[31:27];
@@ -14,17 +26,21 @@ module instruction_decoder (
     localparam [1:0] IMM_SIGNED=2'd0, IMM_SHIFT=2'd1, IMM_LUI=2'd2;
 
     always @(*) begin
-        read_addr1=instruction[26:23]; 
-        read_addr2=instruction[22:19]; 
+        read_addr1=instruction[26:23];
+        read_addr2=instruction[22:19];
         write_addr=4'd0;
-        reg_write=1'b0; 
-        alu_src_immediate=1'b0; 
+        reg_write=1'b0;
+        alu_src_immediate=1'b0;
         imm_select=IMM_SIGNED;
-        alu_control=ALU_ADD; 
+        alu_control=ALU_ADD;
         halt=1'b0;
         mem_read=1'b0;
         mem_write=1'b0;
         mem_to_reg=1'b0;
+        branch_kind=2'b00;
+        jump=1'b0;
+        jump_register=1'b0;
+        nop=1'b0;
         case (opcode)
             5'b00000: begin write_addr=instruction[18:15]; reg_write=1; alu_control=ALU_ADD; end // ADD
             5'b00001: begin write_addr=instruction[18:15]; reg_write=1; alu_control=ALU_SUB; end // SUB
@@ -46,8 +62,13 @@ module instruction_decoder (
             5'b10001: begin write_addr=instruction[22:19]; reg_write=1; alu_control=ALU_LUI; alu_src_immediate=1; imm_select=IMM_LUI; end // LUI
             5'b10010: begin write_addr=instruction[22:19]; reg_write=1; alu_src_immediate=1; mem_read=1; mem_to_reg=1; end // LD: rt <- mem[rs1 + signext(offset)]
             5'b10011: begin alu_src_immediate=1; mem_write=1; end // ST: mem[rs1 + signext(offset)] <- rt
+            5'b10100: branch_kind=2'b01; // BEQ
+            5'b10101: branch_kind=2'b10; // BNE
+            5'b10110: jump=1'b1; // J: absolute word address
+            5'b10111: jump_register=1'b1; // JR: byte address from rs1
+            5'b11000: nop=1'b1; // NOP: advance without side effects
             5'b11001: halt=1'b1; // HALT
-            default: ; // branches and reserved opcodes are not implemented in this datapath.
+            default: ; // Reserved opcodes are inert NOP-like instructions.
         endcase
     end
 endmodule
