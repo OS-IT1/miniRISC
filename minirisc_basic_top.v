@@ -1,4 +1,4 @@
-// Baseline single-cycle MiniRISC datapath with synchronous BRAM load control.
+// MiniRISC datapath with synchronous BRAM loads and stalled Booth MUL/MAC.
 module minirisc_basic_top (
     input  wire        clk,
     input  wire        rst,
@@ -13,6 +13,7 @@ module minirisc_basic_top (
 
     wire [3:0] rs1, rs2, rd, alu_control;
     wire reg_write, alu_src_immediate, halt_instruction;
+    wire mul_instruction, mac_instruction;
     wire mem_read, mem_write, mem_to_reg, nop;
     wire [1:0] imm_select, branch_kind;
     wire jump, jump_register;
@@ -22,11 +23,38 @@ module minirisc_basic_top (
     wire [1:0] pc_select;
     wire branch_taken;
     wire execute_instruction, load_issue, load_commit;
+    wire mul_start, mul_wait, mul_commit, multiplier_busy, multiplier_done;
     wire pc_write, rom_enable;
     wire load_wait;
+    wire [3:0] rf_read_addr1;
+    wire [31:0] multiplier_write_data;
+    wire signed [63:0] multiplier_product;
+    reg [3:0] mul_destination;
+    reg mul_is_mac;
+    reg [31:0] mac_accumulator;
 
     // Keep the original waveform/testbench probe name for the load wait state.
     assign load_wait = load_commit;
+    // During the multiply wait, the multiplier has already latched rs1/rs2.
+    // MAC reuses read port 1 to fetch the old destination accumulator.
+    assign rf_read_addr1 = (mul_wait && mul_is_mac) ? mul_destination : rs1;
+    assign multiplier_write_data = mul_is_mac ?
+        (multiplier_product[31:0] + mac_accumulator) : multiplier_product[31:0];
+
+    always @(posedge clk) begin
+        if (rst) begin
+            mul_destination <= 4'd0;
+            mul_is_mac <= 1'b0;
+            mac_accumulator <= 32'd0;
+        end else begin
+            if (mul_start) begin
+                mul_destination <= rd;
+                mul_is_mac <= mac_instruction;
+            end
+            if (mul_wait && mul_is_mac)
+                mac_accumulator <= read_data1;
+        end
+    end
 
     // PC is the address of the instruction being executed. The PC mux feeds
     // the next fetch address to the synchronous ROM on the same clock edge.
@@ -74,6 +102,8 @@ module minirisc_basic_top (
         .mem_read          (mem_read),
         .mem_write         (mem_write),
         .mem_to_reg        (mem_to_reg),
+        .mul_instruction   (mul_instruction),
+        .mac_instruction   (mac_instruction),
         .branch_kind       (branch_kind),
         .jump              (jump),
         .jump_register     (jump_register),
@@ -83,14 +113,14 @@ module minirisc_basic_top (
     register_file_16x32 rf (
         .clk          (clk),
         .rst          (rst),
-        .read_addr1   (rs1),
+        .read_addr1   (rf_read_addr1),
         .read_addr2   (rs2),
         .read_data1   (read_data1),
         .read_data2   (read_data2),
-        .write_enable ((execute_instruction & reg_write & ~mem_read & ~halt_instruction) |
-                       (load_commit & mem_to_reg)),
-        .write_addr   (rd),
-        .write_data   (register_write_data)
+        .write_enable ((execute_instruction & reg_write & ~mem_read & ~halt_instruction & ~mul_instruction) |
+                       (load_commit & mem_to_reg) | mul_commit),
+        .write_addr   (mul_commit ? mul_destination : rd),
+        .write_data   (mul_commit ? multiplier_write_data : register_write_data)
     );
 
     data_bram_ram dmem (
@@ -131,12 +161,28 @@ module minirisc_basic_top (
         .branch_taken  (branch_taken)
     );
 
+    fast_booth_multiplier_32 booth_multiplier (
+        .clk         (clk),
+        .reset       (rst),
+        .start       (mul_start),
+        .multiplicand($signed(read_data1)),
+        .multiplier  ($signed(read_data2)),
+        .product     (multiplier_product),
+        .busy        (multiplier_busy),
+        .done        (multiplier_done)
+    );
+
     baseline_control_unit control (
         .clk                 (clk),
         .rst                 (rst),
         .mem_read            (mem_read),
         .halt_instruction    (halt_instruction),
+        .mul_instruction     (mul_instruction),
+        .multiplier_done     (multiplier_done),
         .execute_instruction (execute_instruction),
+        .mul_start           (mul_start),
+        .mul_wait            (mul_wait),
+        .mul_commit          (mul_commit),
         .load_issue          (load_issue),
         .load_commit         (load_commit),
         .pc_write            (pc_write),

@@ -25,4 +25,9 @@
 | `10111` | JR | JR |
 | `11000` | NOP | SYS |
 | `11001` | HALT | SYS |
-| `11010`–`11111` | Unused | — |
+| `11010` | MAC | R |
+| `11011`–`11111` | Unused | — |
+
+MUL writes the low 32 bits of the signed 32 × 32 product to `rd`.
+MAC computes `rd <- rd + rs1 * rs2` with 32-bit wraparound. Both use the
+R-format field layout: `opcode[31:27], rs1[26:23], rs2[22:19], rd[18:15]`.

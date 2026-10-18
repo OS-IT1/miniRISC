@@ -12,6 +12,8 @@ module instruction_decoder (
     output reg mem_read,
     output reg mem_write,
     output reg mem_to_reg,
+    output reg mul_instruction,
+    output reg mac_instruction,
     output reg [1:0] branch_kind,
     output reg jump,
     output reg jump_register,
@@ -37,6 +39,8 @@ module instruction_decoder (
         mem_read=1'b0;
         mem_write=1'b0;
         mem_to_reg=1'b0;
+        mul_instruction=1'b0;
+        mac_instruction=1'b0;
         branch_kind=2'b00;
         jump=1'b0;
         jump_register=1'b0;
@@ -55,7 +59,7 @@ module instruction_decoder (
             5'b01010: begin write_addr=instruction[18:15]; reg_write=1; alu_control=ALU_SLL; end // SLA
             5'b01011: begin write_addr=instruction[18:15]; reg_write=1; alu_control=ALU_SLT; end // SLT
             5'b01100: begin write_addr=instruction[18:15]; reg_write=1; alu_control=ALU_SGT; end // SGT
-            // 01101 is MUL: intentionally deferred to the later assignment.
+            5'b01101: begin write_addr=instruction[18:15]; reg_write=1; mul_instruction=1; end // MUL: rd <- rs1 * rs2
             5'b01110: begin write_addr=instruction[22:19]; reg_write=1; alu_control=ALU_ADD; alu_src_immediate=1; end // ADDI
             5'b01111: begin write_addr=instruction[22:19]; reg_write=1; alu_control=ALU_SUB; alu_src_immediate=1; end // SUBI
             5'b10000: begin write_addr=instruction[22:19]; reg_write=1; alu_control=ALU_ADD; alu_src_immediate=1; end // MOV
@@ -68,6 +72,7 @@ module instruction_decoder (
             5'b10111: jump_register=1'b1; // JR: byte address from rs1
             5'b11000: nop=1'b1; // NOP: advance without side effects
             5'b11001: halt=1'b1; // HALT
+            5'b11010: begin write_addr=instruction[18:15]; reg_write=1; mul_instruction=1; mac_instruction=1; end // MAC: rd <- rd + rs1 * rs2
             default: ; // Reserved opcodes are inert NOP-like instructions.
         endcase
     end

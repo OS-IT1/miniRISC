@@ -1,6 +1,8 @@
-# MiniRISC Assignment 4: Branch Control and Baseline Processor
+# MiniRISC: Branch Control and Booth Multiplier Integration
 
-This MiniRISC baseline integrates the PC, synchronous instruction ROM, decoder, register file, immediate generator, ALU, synchronous data BRAM, load/store path, BEQ/BNE branch unit, PC selection, write-back, NOP, HALT, and a control FSM. MUL/MAC hardware remains deferred as specified in the assignment.
+The MiniRISC integrates the PC, synchronous instruction ROM, decoder, register file, immediate generator, ALU, synchronous data BRAM, load/store path, BEQ/BNE branch unit, PC selection, write-back, NOP, HALT, and a control FSM. The fast signed Booth multiplier in `FastBoothMultiplier_58/` is connected to MUL and MAC instructions. The control FSM holds the multiply instruction and PC while the wrapper is busy, then commits the result to a latched destination.
+
+MUL (`01101`) writes the low 32 bits of `rs1 * rs2` to `rd`. MAC (`11010`, using a previously unused opcode) adds the low 32 product bits to the old `rd` value and writes the 32-bit wrapped sum back to `rd`. Both use the R-format field layout documented in `isa.txt`. MAC fetches its accumulator from the register file during the multiply wait after the multiplier has latched its two operands. The hardware wait path is the 28 October stall policy; software NOP scheduling is not required.
 
 The demonstration program in `program.hex` and `program.coe` initializes a loop counter and increment value, clears an accumulator with MOVE, accumulates with ADD, stores and reloads the result from data BRAM, decrements the counter, and branches back while it is nonzero. The final BNE and an additional BEQ demonstrate the not-taken path, followed by NOP and HALT. The testbench checks ADD, ADDI, SUBI, MOVE, LD, ST, taken and untaken branches, NOP, and HALT.
 
@@ -21,13 +23,13 @@ LD uses the synchronous BRAM read followed by a write-back cycle. HALT holds the
 With Icarus Verilog installed, run:
 
 ```sh
-iverilog -g2012 -s tb_minirisc_basic -o /tmp/minirisc_tb *.v simulation/*.v
+iverilog -g2012 -s tb_minirisc_basic -o /tmp/minirisc_tb *.v FastBoothMultiplier_58/*.v simulation/*.v
 vvp /tmp/minirisc_tb +PROGRAM=program.hex
 ```
 
 The simulation-only BRAM models are in `simulation/`; exclude them from synthesis and use the generated Vivado IP instead. `tb_minirisc_basic.v` writes `minirisc_basic.vcd`, with named probes for the assignment's required waveform signals, and checks the loop results, branch PC choices, memory transactions, and multiple HALT cycles.
 
-## Assignment 4 verification and remaining submission items
+## Assignment notes and remaining submission items
 
 Section 10 is demonstrated by the existing 11-word program: initialize R1=3
 and R2=1, MOVE R0 into R3, then loop over ADD, ST to word 5, LD into R4,
@@ -50,8 +52,9 @@ final register values, and PC/instruction/register/write-enable preservation
 for three clocks after HALT. The testbench is specific to the demonstration
 program; a different `+PROGRAM` requires corresponding expected results.
 
-The repository still needs an updated architecture diagram (including the
-future Booth multiplier connection) and a full instruction/control table for
-submission. `isa.txt` is an opcode/type table, not the full control table.
+The repository still needs an updated architecture diagram and a full
+instruction/control table for submission. `isa.txt` is an opcode/type table,
+not the full control table. Add a dot-product program to the instruction ROM
+to demonstrate repeated MUL/MAC execution as part of the Assignment 3 demo.
 Vivado-generated BRAM IP and its configuration must also be checked in Vivado;
 the behavioral models only verify the documented one-cycle BRAM interface.
