@@ -29,6 +29,16 @@ vvp /tmp/minirisc_tb +PROGRAM=program.hex
 
 The simulation-only BRAM models are in `simulation/`; exclude them from synthesis and use the generated Vivado IP instead. `tb_minirisc_basic.v` writes `minirisc_basic.vcd`, with named probes for the assignment's required waveform signals, and checks the loop results, branch PC choices, memory transactions, and multiple HALT cycles.
 
+The CPU-level Booth integration test uses a short program loaded directly into
+the behavioral ROM by `tb_minirisc_multiplier.v`. It checks signed MUL,
+repeated MAC accumulation for a two-term dot product, multiplier write-back,
+destination retention, and PC/ROM stall behavior:
+
+```sh
+iverilog -g2012 -s tb_minirisc_multiplier -o /tmp/minirisc_mul_tb *.v FastBoothMultiplier_58/*.v simulation/*.v
+vvp /tmp/minirisc_mul_tb
+```
+
 ## Assignment notes and remaining submission items
 
 Section 10 is demonstrated by the existing 11-word program: initialize R1=3
