@@ -11,17 +11,18 @@
         mul  r13, r7, r8       // -4 * -5 = 20
 
         addi r10, r0, 0        // ACC = 0
-        ld   r1, 0, r0         // A[0]
-        ld   r2, 4, r0         // B[0]
+        ld   r1, 0(r0)         // A[0]
+        ld   r2, 4(r0)         // B[0]
         mul  r3, r1, r2
         add  r10, r10, r3      // ACC = 8
-        ld   r1, 1, r0         // A[1]
-        ld   r2, 5, r0         // B[1]
+        ld   r1, 1(r0)         // A[1]
+        ld   r2, 5(r0)         // B[1]
         mul  r3, r1, r2
         add  r10, r10, r3      // ACC = 3
-        ld   r1, 2, r0         // A[2]
-        ld   r2, 6, r0         // B[2]
+        ld   r1, 2(r0)         // A[2]
+        ld   r2, 6(r0)         // B[2]
         mul  r3, r1, r2
         add  r10, r10, r3      // ACC = 21
-        st   r10, 8, r0
+        st   r10, 8(r0)
+        ld   r14, 8(r0)         // Read the stored result back through the BRAM interface
         halt

@@ -35,7 +35,7 @@ module tb_minirisc_assignment5;
     reg [7:0] probe_data_address;
     reg probe_data_enable, probe_data_write_enable;
     reg [31:0] probe_data_write_data, probe_data_read_data;
-    reg [31:0] probe_accumulator, probe_result_memory_word;
+    reg [31:0] probe_accumulator, probe_result_readback;
     reg probe_halted;
 
     minirisc_basic_top dut (
@@ -68,7 +68,7 @@ module tb_minirisc_assignment5;
         probe_data_write_data = dut.dmem.dina;
         probe_data_read_data = dut.data_memory_read;
         probe_accumulator = dut.rf.registers[10];
-        probe_result_memory_word = dut.dmem.ram_ip.memory[8];
+        probe_result_readback = dut.rf.registers[14];
         probe_halted = halted;
     end
 
@@ -140,7 +140,9 @@ module tb_minirisc_assignment5;
 
     initial begin
         $dumpfile("minirisc_assignment5.vcd");
-        $dumpvars(0, tb_minirisc_assignment5);
+        // Dump testbench-level signals and probes only; do not recurse into
+        // the DUT or implementation-specific Vivado memory IP internals.
+        $dumpvars(1, tb_minirisc_assignment5);
 
         repeat (2) @(negedge clk);
         rst = 1'b0;
@@ -156,24 +158,22 @@ module tb_minirisc_assignment5;
         if (mul_starts != 6 || mul_commits != 6)
             $fatal(1, "Expected six MUL starts/commits, got %0d/%0d",
                 mul_starts, mul_commits);
-        if (loads != 6 || stores != 1)
-            $fatal(1, "Expected six LD and one ST, got %0d/%0d", loads, stores);
+        if (loads != 7 || stores != 1)
+            $fatal(1, "Expected seven LD and one ST, got %0d/%0d", loads, stores);
 
         check_register(11, 32'd63);
         check_register(12, 32'hffff_ffd6);
         check_register(13, 32'd20);
         check_register(10, 32'd21);
-        if (dut.dmem.ram_ip.memory[8] !== 32'd21)
-            $fatal(1, "Expected data BRAM Mem[8]=21, got 0x%08h",
-                dut.dmem.ram_ip.memory[8]);
-        if (instruction !== 32'hc8000000 || pc !== 32'd92)
-            $fatal(1, "Expected HALT at byte PC 92, got instruction=0x%08h PC=%0d",
+        check_register(14, 32'd21);
+        if (instruction !== 32'hc8000000 || pc !== 32'd96)
+            $fatal(1, "Expected HALT at byte PC 96, got instruction=0x%08h PC=%0d",
                 instruction, pc);
 
         repeat (3) begin
             @(posedge clk);
             #1;
-            if (!halted || instruction !== 32'hc8000000 || pc !== 32'd92 ||
+            if (!halted || instruction !== 32'hc8000000 || pc !== 32'd96 ||
                 dut.rf.write_enable || dut.dmem.wea)
                 $fatal(1, "HALT failed to hold the processor without writes");
         end
