@@ -140,9 +140,13 @@ module tb_minirisc_assignment5;
 
     initial begin
         $dumpfile("minirisc_assignment5.vcd");
-        // Dump testbench-level signals and probes only; do not recurse into
-        // the DUT or implementation-specific Vivado memory IP internals.
-        $dumpvars(1, tb_minirisc_assignment5);
+        // Dump only the selected assignment waveform signals.
+        $dumpvars(0, clk, pc, instruction, halted,
+            probe_fsm_state,
+            probe_rs1_address, probe_rs2_address, probe_rd_address,
+            probe_source_a, probe_source_b,
+            probe_mul_start, probe_mul_busy, probe_mul_done,
+            probe_mul_product, probe_accumulator, probe_halted);
 
         repeat (2) @(negedge clk);
         rst = 1'b0;
