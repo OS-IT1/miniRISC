@@ -5,14 +5,16 @@ module tb_minirisc_autonomous;
     reg reset;
     wire done;
     wire [31:0] result_out;
+`ifdef RTL_DEBUG_PROBES
+    // Enable only for behavioral simulation. Synthesis can flatten or rename
+    // these internal signals, so they are excluded by default for netlist runs.
     wire [31:0] pc;
     wire [31:0] instruction;
 
     // Waveform probes: PC is a byte address; display instruction in hex.
-    // These paths refer to the RTL hierarchy. For an implemented netlist,
-    // use the corresponding retained signal paths if synthesis renamed them.
     assign pc = dut.core.pc;
     assign instruction = dut.core.instruction;
+`endif
 
     minirisc32_top dut (
         .clk (clk),
