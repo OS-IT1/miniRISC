@@ -63,6 +63,18 @@ string to_bin(long long val, int bits) {
     return res;
 }
 
+string to_hex32(const string& binary) {
+    static const char digits[] = "0123456789ABCDEF";
+    string result;
+    for (int nibble = 0; nibble < 8; ++nibble) {
+        unsigned value = 0;
+        for (int bit = 0; bit < 4; ++bit)
+            value = (value << 1) | (binary[nibble * 4 + bit] == '1');
+        result += digits[value];
+    }
+    return result;
+}
+
 // Parse register string (e.g. "r1", "1") to integer
 int parse_reg(string reg_str) {
     reg_str = to_lower(reg_str);
@@ -117,6 +129,10 @@ int main() {
     while (getline(asm_stream, line)) {
         // Strip comments
         size_t comment_pos = line.find("//");
+        size_t semicolon_pos = line.find(';');
+        if (semicolon_pos != string::npos &&
+            (comment_pos == string::npos || semicolon_pos < comment_pos))
+            comment_pos = semicolon_pos;
         if (comment_pos != string::npos) {
             line = line.substr(0, comment_pos);
         }
@@ -238,12 +254,13 @@ int main() {
         return 1;
     }
     
-    outfile << "memory_initialization_radix=2;\n";
+    outfile << "memory_initialization_radix=16;\n";
     outfile << "memory_initialization_vector=\n";
     
     for (size_t i = 0; i < binary_out.size(); ++i) {
-        outfile << binary_out[i] << (i == binary_out.size() - 1 ? ";" : ",") << "\n";
-        cout << "PC=" << i << ": " << binary_out[i] << "\n";
+        string machine_word = to_hex32(binary_out[i]);
+        outfile << machine_word << (i == binary_out.size() - 1 ? ";" : ",") << "\n";
+        cout << "PC=" << i << ": " << machine_word << "\n";
     }
     
     outfile.close();

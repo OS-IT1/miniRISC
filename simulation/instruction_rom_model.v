@@ -9,7 +9,7 @@ module instruction_rom (
     initial begin
         douta=32'b0;
         if (!$value$plusargs("PROGRAM=%s", program_file))
-            program_file = "program.hex";
+            program_file = "program_assignment6.hex";
         $readmemh(program_file,memory);
     end
     // One-cycle synchronous read, matching the configured BRAM IP.

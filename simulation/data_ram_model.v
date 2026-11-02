@@ -9,20 +9,31 @@ module data_ram_ip (
     output reg [31:0] douta
 );
     reg [31:0] memory [0:255];
+    reg [255:0] data_set;
     integer i;
 
     initial begin
         douta = 32'b0;
         for (i = 0; i < 256; i = i + 1)
             memory[i] = 32'b0;
-        // Assignment 5 dot-product vectors, addressed by 32-bit words.
-        memory[0] = 32'd2;        // A[0]
-        memory[1] = -32'd1;       // A[1]
-        memory[2] = 32'd3;        // A[2]
-        memory[4] = 32'd4;        // B[0]
-        memory[5] = 32'd5;        // B[1]
-        memory[6] = 32'd6;        // B[2]
-        memory[8] = 32'd0;        // Result
+        if (!$value$plusargs("DATA=%s", data_set))
+            data_set = "assignment6";
+        if (data_set == "assignment5") begin
+            // Assignment 5 dot-product vectors, addressed by 32-bit words.
+            memory[0] = 32'd2;
+            memory[1] = -32'd1;
+            memory[2] = 32'd3;
+            memory[4] = 32'd4;
+            memory[5] = 32'd5;
+            memory[6] = 32'd6;
+        end else begin
+            // Assignment 6 four-element sum, matching data.coe.
+            memory[0] = 32'd10;
+            memory[1] = 32'd20;
+            memory[2] = 32'd30;
+            memory[3] = 32'd40;
+        end
+        memory[8] = 32'd0;
     end
 
     // Synchronous read and write, matching the recommended Block RAM setup.

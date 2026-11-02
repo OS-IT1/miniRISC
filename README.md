@@ -4,7 +4,7 @@ The MiniRISC integrates the PC, synchronous instruction ROM, decoder, register f
 
 MUL (`01101`) writes the low 32 bits of `rs1 * rs2` to `rd`. MAC (`11010`, using a previously unused opcode) adds the low 32 product bits to the old `rd` value and writes the 32-bit wrapped sum back to `rd`. Both use the R-format field layout documented in `isa.txt`. MAC fetches its accumulator from the register file during the multiply wait after the multiplier has latched its two operands. The hardware wait path is the 28 October stall policy; software NOP scheduling is not required.
 
-The Assignment 5 demonstration in `program.asm`, `program.hex`, and `program.coe` first executes the three required signed MUL cases, then computes `[2,-1,3] · [4,5,6]` using LD, MUL, and ADD and stores 21 at data word 8. It loads word 8 back into R14 through the BRAM interface before HALT, so the testbench checks the stored value without inspecting RAM-model internals. `data.coe` and the behavioral RAM model use the assignment's suggested word layout.
+The Assignment 5 demonstration first executes the three required signed MUL cases, then computes `[2,-1,3] · [4,5,6]` using LD, MUL, and ADD and stores 21 at data word 8. Its preserved instruction image is `program_assignment5.hex`.
 
 The architectural instruction address is a word index. The RTL represents the PC as a byte address, increments sequentially by four bytes, and uses `PC[9:2]` as the BRAM word address. Branch offsets are signed word offsets relative to the instruction after the branch: `target = PC + 4 + (sign_extend(offset) << 2)`. The ISA supports BEQ and BNE; positive and negative branches are not implemented because the group selected equality and inequality branches.
 
@@ -24,10 +24,10 @@ With Icarus Verilog installed, run:
 
 ```sh
 iverilog -g2012 -s tb_minirisc_assignment5 -o /tmp/minirisc_assignment5_tb *.v FastBoothMultiplier_58/*.v simulation/*.v
-vvp /tmp/minirisc_assignment5_tb +PROGRAM=program.hex
+vvp /tmp/minirisc_assignment5_tb +PROGRAM=program_assignment5.hex +DATA=assignment5
 ```
 
-The simulation-only BRAM models are in `simulation/`; exclude them from synthesis and use the generated Vivado IP instead. `tb_minirisc_assignment5.v` writes `minirisc_assignment5.vcd` and checks signed results, MUL stalls and write-back, dependent ADDs, BRAM transactions, `Mem[8] = 21`, and HALT. Its named probes include PC/instruction/opcode, FSM state, source operands, multiplier start/busy/done/product, saved destination, register write-back, BRAM address/data/read/write controls, accumulator, result word, and HALT. `program.hex` and `program.coe` contain the same instruction words.
+The simulation-only BRAM models are in `simulation/`; exclude them from synthesis and use the generated Vivado IP instead. `tb_minirisc_assignment5.v` writes `minirisc_assignment5.vcd` and checks signed results, MUL stalls and write-back, dependent ADDs, BRAM transactions, `Mem[8] = 21`, and HALT. Its named probes include PC/instruction/opcode, FSM state, source operands, multiplier start/busy/done/product, saved destination, register write-back, BRAM address/data/read/write controls, accumulator, result word, and HALT.
 
 The earlier branch and loop demonstration remains available as `program_branch.hex`:
 
@@ -56,3 +56,42 @@ vvp /tmp/minirisc_mul_tb
 ```
 
 Vivado-generated BRAM IP and its configuration must be checked in Vivado; the behavioral models verify the documented one-cycle BRAM interface.
+
+## Assignment 6: autonomous four-word sum
+
+The `minirisc32_top` wrapper provides the required `clk`, active-high `reset`,
+`done`, and `result_out` interface. It starts at instruction word zero after
+reset. The program reads data words 0–3, accumulates 10 + 20 + 30 + 40 in R3,
+stores the computed value to word 8, then halts. `result_out` captures the
+actual value written by that store and remains stable while halted.
+
+The assignment program is in `Assembler/input.txt` and
+`program_assignment6.asm`. To regenerate the assembler image, run
+`g++ -std=c++17 -o assembler assembler.cpp && ./assembler` from `Assembler/`;
+the assembler writes the same radix-16 image to `Assembler/memory.coe`. The
+Vivado instruction image is in
+`program.coe`, `program.hex`, and `program_assignment6.coe` (all 11 words).
+`data.coe` initializes words 0–3 to 10, 20, 30, and 40, and word 8 to zero.
+The simulation data model uses the same values by default.
+
+Run the behavioral simulation from the project root with Icarus Verilog:
+
+```sh
+iverilog -g2012 -s tb_minirisc_autonomous -o /tmp/minirisc_assignment6_tb *.v FastBoothMultiplier_58/*.v simulation/*.v
+vvp /tmp/minirisc_assignment6_tb
+```
+
+The testbench checks each loaded word, the accumulator progression
+`0 → 10 → 30 → 60 → 100`, data word 8, the HALT address and instruction,
+`done`, `result_out`, and stable no-write behavior.
+It writes `minirisc_autonomous.vcd`. `tb_minirisc_autonomous_timing.v` is the
+top-level testbench for the post-implementation timing simulation model.
+
+For Vivado, set `minirisc32_top` as the design top, initialize the instruction
+ROM from `program.coe` and data BRAM from `data.coe`, and apply
+`minirisc_assignment6.xdc` (10 ns / 100 MHz). Keep the existing BRAM settings
+described above. Run synthesis and implementation, generate the post-implementation
+timing simulation model, then compile that model with
+`tb_minirisc_autonomous_timing.v`; the expected stable outputs are `done=1` and
+`result_out=32'h00000064`. Vivado implementation and timing simulation require
+the generated IP and Vivado project, which are not part of this source tree.

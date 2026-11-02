@@ -4,7 +4,8 @@ module minirisc_basic_top (
     input  wire        rst,
     output wire [31:0] pc,
     output wire [31:0] instruction,
-    output wire        halted
+    output wire        halted,
+    output reg  [31:0] result_out
 );
     localparam [1:0] PC_SEQUENTIAL = 2'b00;
     localparam [1:0] PC_BRANCH     = 2'b01;
@@ -46,6 +47,7 @@ module minirisc_basic_top (
             mul_destination <= 4'd0;
             mul_is_mac <= 1'b0;
             mac_accumulator <= 32'd0;
+            result_out <= 32'd0;
         end else begin
             if (mul_start) begin
                 mul_destination <= rd;
@@ -53,6 +55,10 @@ module minirisc_basic_top (
             end
             if (mul_wait && mul_is_mac)
                 mac_accumulator <= read_data1;
+            // Capture the value produced by the real processor store to the
+            // assignment's designated result word. This remains stable at HALT.
+            if (execute_instruction && mem_write && alu_result[7:0] == 8'd8)
+                result_out <= read_data2;
         end
     end
 
