@@ -1,15 +1,15 @@
-// Assignment 6 autonomous processor interface.
+// Assignment 7 autonomous matrix multiplication interface.
 // Execution starts at word address zero after reset is released.
 module minirisc32_top (
     input  wire        clk,
     input  wire        reset,
     output wire        done,
-    output wire [31:0] result_out
+    output wire [127:0] result_matrix
 );
     wire [31:0] unused_pc;
     wire [31:0] unused_instruction;
     wire halted;
-    wire [31:0] core_result;
+    wire [127:0] core_result;
 
     // Internal reset. It powers up asserted (INIT = 1) and is held for four
     // clock edges after the reset input is low AND the global set/reset (GSR)
@@ -36,9 +36,9 @@ module minirisc32_top (
         .pc         (unused_pc),
         .instruction(unused_instruction),
         .halted     (halted),
-        .result_out (core_result)
+        .result_matrix(core_result)
     );
 
     assign done = halted;
-    assign result_out = core_result;
+    assign result_matrix = core_result;
 endmodule

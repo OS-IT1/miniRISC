@@ -5,7 +5,7 @@ module minirisc_basic_top (
     output wire [31:0] pc,
     output wire [31:0] instruction,
     output wire        halted,
-    output reg  [31:0] result_out
+    output reg  [127:0] result_matrix
 );
     wire [3:0] rs1, rs2, rd, alu_control;
     wire reg_write, alu_src_immediate, halt_instruction;
@@ -43,7 +43,7 @@ module minirisc_basic_top (
             mul_destination <= 4'd0;
             mul_is_mac <= 1'b0;
             mac_accumulator <= 32'd0;
-            result_out <= 32'd0;
+            result_matrix <= 128'd0;
         end else begin
             if (mul_start) begin
                 mul_destination <= rd;
@@ -51,10 +51,17 @@ module minirisc_basic_top (
             end
             if (mul_wait && mul_is_mac)
                 mac_accumulator <= read_data1;
-            // Capture the value produced by the real processor store to the
-            // assignment's designated result word. This remains stable at HALT.
-            if (execute_instruction && mem_write && alu_result[7:0] == 8'd8)
-                result_out <= read_data2;
+            // Capture the same processor-produced words written to data BRAM.
+            // HALT suppresses further stores, so the four outputs remain stable.
+            if (execute_instruction && mem_write && ~rst) begin
+                case (alu_result[7:0])
+                    8'd8:  result_matrix[31:0]   <= read_data2;
+                    8'd9:  result_matrix[63:32]  <= read_data2;
+                    8'd10: result_matrix[95:64]  <= read_data2;
+                    8'd11: result_matrix[127:96] <= read_data2;
+                    default: ;
+                endcase
+            end
         end
     end
 

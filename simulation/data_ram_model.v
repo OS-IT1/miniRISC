@@ -17,7 +17,7 @@ module data_ram_ip (
         for (i = 0; i < 256; i = i + 1)
             memory[i] = 32'b0;
         if (!$value$plusargs("DATA=%s", data_set))
-            data_set = "assignment6";
+            data_set = "assignment7";
         if (data_set == "assignment5") begin
             // Assignment 5 dot-product vectors, addressed by 32-bit words.
             memory[0] = 32'd2;
@@ -26,14 +26,22 @@ module data_ram_ip (
             memory[4] = 32'd4;
             memory[5] = 32'd5;
             memory[6] = 32'd6;
-        end else begin
-            // Assignment 6 four-element sum, matching data.coe.
+        end else if (data_set == "assignment6") begin
             memory[0] = 32'd10;
             memory[1] = 32'd20;
             memory[2] = 32'd30;
             memory[3] = 32'd40;
+        end else begin
+            // Assignment 7 matrix inputs, matching data.coe.
+            memory[0] = 32'd1;
+            memory[1] = 32'd2;
+            memory[2] = 32'd3;
+            memory[3] = 32'd4;
+            memory[4] = 32'd5;
+            memory[5] = 32'd6;
+            memory[6] = 32'd7;
+            memory[7] = 32'd8;
         end
-        memory[8] = 32'd0;
     end
 
     // Synchronous read and write, matching the recommended Block RAM setup.

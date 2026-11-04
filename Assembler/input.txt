@@ -1,12 +1,29 @@
-// Assignment 6: sum data words 0 through 3 into data word 8.
+// Assignment 7: C[i][j] = sum(k=0..1) A[i][k] * B[k][j].
+// R1=i, R2=j, R3=k, R4=2i, R5=4+j, R6=8+2i+j,
+// R7=accumulator, R8/R9=addresses, R10/R11=operands, R12=product, R13=2.
 addi r1, r0, 0
-addi r2, r0, 4
+addi r4, r0, 0
+addi r6, r0, 8
+addi r13, r0, 2
+row: addi r2, r0, 0
+addi r5, r0, 4
+column: addi r7, r0, 0
 addi r3, r0, 0
-loop: ld r4, 0(r1)
-add r3, r3, r4
+term: add r8, r4, r3
+add r9, r3, r3
+add r9, r9, r5
+ld r10, 0(r8)
+ld r11, 0(r9)
+mul r12, r10, r11
+add r7, r7, r12
+addi r3, r3, 1
+bne r3, r13, term
+st r7, 0(r6)
+addi r6, r6, 1
+addi r2, r2, 1
+addi r5, r5, 1
+bne r2, r13, column
+addi r4, r4, 2
 addi r1, r1, 1
-subi r2, r2, 1
-beq r2, r0, done
-j loop
-done: st r3, 8(r0)
+bne r1, r13, row
 halt
