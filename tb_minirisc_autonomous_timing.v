@@ -1,7 +1,10 @@
 `timescale 1ns/1ps
 
-// Use this same top-level testbench against the post-implementation timing
-// simulation model. Keep the 10 ns clock period used by the XDC constraint.
+// Top-level testbench for the post-implementation timing simulation.
+// Clock period = 14 ns, matching minirisc_assignment6.xdc.
+// Reset is held until 200 ns so it outlasts the 100 ns GSR pulse that
+// the Vivado timing netlist (glbl.v) applies at start-up; otherwise reset
+// would never take effect and the instruction ROM would not be primed.
 module tb_minirisc_autonomous_timing;
     reg clk = 1'b0;
     reg reset = 1'b1;
@@ -13,12 +16,13 @@ module tb_minirisc_autonomous_timing;
         .clk(clk), .reset(reset), .done(done), .result_out(result_out)
     );
 
-    always #5 clk = ~clk;
+    always #7 clk = ~clk;   // 14 ns period
 
     initial begin
         $dumpfile("minirisc_autonomous_timing.vcd");
         $dumpvars(0, tb_minirisc_autonomous_timing);
-        repeat (5) @(negedge clk);
+        #200;                  // past GSR (100 ns) with several clocked reset cycles
+        @(negedge clk);
         reset = 1'b0;
         while (done !== 1'b1 && cycles < 200) begin
             @(posedge clk);
@@ -41,7 +45,7 @@ module tb_minirisc_autonomous_timing;
     end
 
     initial begin
-        #5000;
+        #10000;
         $fatal(1, "Timing simulation watchdog timeout");
     end
 endmodule

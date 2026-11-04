@@ -20,8 +20,13 @@ module multiplier_control (
     output reg busy,
     output reg done
 );
+    // COMPUTE is split into two cycles so the partial-product / CSA-tree /
+    // final-adder path has two clock periods (see the multicycle constraint
+    // in minirisc_assignment6.xdc). prod_reg is loaded only at the end of
+    // COMPUTE2; mc_reg/mp_reg are stable for the whole interval.
     localparam  IDLE     = 2'b00;
-    localparam  COMPUTE  = 2'b01;
+    localparam  COMPUTE1 = 2'b01;
+    localparam  COMPUTE2 = 2'b11;
     localparam  DONE_ST  = 2'b10;
 
     reg [1:0] state, next_state;
@@ -46,11 +51,16 @@ module multiplier_control (
                 if (start) begin
                     load_inputs  = 1'b1;
                     busy         = 1'b1;
-                    next_state   = COMPUTE;
+                    next_state   = COMPUTE1;
                 end
             end
 
-            COMPUTE: begin
+            COMPUTE1: begin
+                busy         = 1'b1;
+                next_state   = COMPUTE2;
+            end
+
+            COMPUTE2: begin
                 busy         = 1'b1;
                 load_product = 1'b1;
                 next_state   = DONE_ST;
@@ -61,7 +71,7 @@ module multiplier_control (
                 if (start) begin
                     load_inputs  = 1'b1;
                     busy         = 1'b1;
-                    next_state   = COMPUTE;
+                    next_state   = COMPUTE1;
                 end else begin
                     next_state   = DONE_ST;
                 end
