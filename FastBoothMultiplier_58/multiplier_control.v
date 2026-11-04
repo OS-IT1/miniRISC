@@ -24,7 +24,9 @@ module multiplier_control (
     localparam  COMPUTE  = 2'b01;
     localparam  DONE_ST  = 2'b10;
 
-    reg [1:0] state, next_state;
+    // Keep this binary encoding: all-zero (power-up) must stay the legal IDLE state.
+    (* fsm_encoding = "none" *) reg [1:0] state;
+    reg [1:0] next_state;
 
     always @(posedge clk) begin
         if (reset) begin

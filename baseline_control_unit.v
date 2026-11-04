@@ -18,11 +18,13 @@ module baseline_control_unit (
     output wire rom_enable,
     output wire halted
 );
-    localparam [1:0] EXECUTE   = 2'b00;
-    localparam [1:0] LOAD_WAIT = 2'b01;
-    localparam [2:0] HALTED      = 3'b010;
-    localparam [2:0] MUL_WAIT    = 3'b011;
-    reg [2:0] state;
+    localparam [2:0] EXECUTE   = 3'b000;
+    localparam [2:0] LOAD_WAIT = 3'b001;
+    localparam [2:0] HALTED    = 3'b010;
+    localparam [2:0] MUL_WAIT  = 3'b011;
+    // Keep this binary encoding: all-zero (the flip-flop power-up value) must
+    // stay a legal state. Automatic one-hot recoding would make it illegal.
+    (* fsm_encoding = "none" *) reg [2:0] state;
 
     assign execute_instruction = (state == EXECUTE);
     assign load_issue = execute_instruction & mem_read;
