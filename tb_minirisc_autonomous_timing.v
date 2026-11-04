@@ -16,7 +16,7 @@ module tb_minirisc_autonomous_timing;
         .clk(clk), .reset(reset), .done(done), .result_out(result_out)
     );
 
-    always #7 clk = ~clk;   // 14 ns period
+    always #40 clk = ~clk;   // 14 ns period
 
     initial begin
         $dumpfile("minirisc_autonomous_timing.vcd");

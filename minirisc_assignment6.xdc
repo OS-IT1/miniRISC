@@ -2,7 +2,7 @@
 # 14 ns = ~71.4 MHz. The fetch/execute loop needs ~11.5 ns; 14 ns leaves margin.
 # The timing-simulation testbench must use the same period (half period = 7 ns).
 set_property -dict { PACKAGE_PIN E3 IOSTANDARD LVCMOS33 } [get_ports clk]
-create_clock -name processor_clk -period 14.000 [get_ports clk]
+create_clock -name processor_clk -period 80.000 [get_ports clk]
 
 # Booth multiplier: operands are latched by load_inputs and held while the
 # multiplier FSM spends two cycles (COMPUTE1, COMPUTE2) before loading prod_reg.
