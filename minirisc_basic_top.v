@@ -7,11 +7,6 @@ module minirisc_basic_top (
     output wire        halted,
     output reg  [31:0] result_out
 );
-    localparam [1:0] PC_SEQUENTIAL = 2'b00;
-    localparam [1:0] PC_BRANCH     = 2'b01;
-    localparam [1:0] PC_JUMP       = 2'b10;
-    localparam [1:0] PC_REGISTER   = 2'b11;
-
     wire [3:0] rs1, rs2, rd, alu_control;
     wire reg_write, alu_src_immediate, halt_instruction;
     wire mul_instruction, mac_instruction;
@@ -21,7 +16,8 @@ module minirisc_basic_top (
     wire [31:0] read_data1, read_data2, immediate, alu_operand_b;
     wire [31:0] alu_result, data_memory_read, register_write_data;
     wire [31:0] branch_pc, jump_pc, next_pc, rom_pc;
-    wire [1:0] pc_select;
+    wire signed [19:0] branch_offset_plus_one;
+    wire [29:0] branch_pc_word;
     wire branch_taken;
     wire execute_instruction, load_issue, load_commit;
     wire mul_start, mul_wait, mul_commit, multiplier_busy, multiplier_done;
@@ -64,21 +60,17 @@ module minirisc_basic_top (
 
     // PC is the address of the instruction being executed. The PC mux feeds
     // the next fetch address to the synchronous ROM on the same clock edge.
-    assign branch_pc = pc + 32'd4 + ({{13{instruction[18]}}, instruction[18:0]} << 2);
+    // Fold the architectural PC+4 into the signed word offset. This lets the
+    // offset increment happen in parallel with the PC path, leaving one
+    // address adder instead of serial PC+4 and displacement adders.
+    assign branch_offset_plus_one = {instruction[18], instruction[18:0]} + 20'sd1;
+    assign branch_pc_word = pc[31:2] + {{10{branch_offset_plus_one[19]}}, branch_offset_plus_one};
+    assign branch_pc = {branch_pc_word, pc[1:0]};
     assign jump_pc = {{3{1'b0}}, instruction[26:0], 2'b00};
     assign rom_pc = rst ? pc : (pc_write ? next_pc : pc);
-    assign pc_select = jump_register ? PC_REGISTER :
-                       jump ? PC_JUMP :
-                       (branch_taken ? PC_BRANCH : PC_SEQUENTIAL);
-
-    pc_select_mux pc_mux (
-        .select       (pc_select),
-        .sequential_pc(pc + 32'd4),
-        .branch_pc    (branch_pc),
-        .jump_pc      (jump_pc),
-        .register_pc  (read_data1),
-        .next_pc      (next_pc)
-    );
+    assign next_pc = jump_register ? read_data1 :
+                     jump ? jump_pc :
+                     branch_taken ? branch_pc : (pc + 32'd4);
 
     pc_unit pc0 (
         .clk    (clk),
