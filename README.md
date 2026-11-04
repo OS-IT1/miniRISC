@@ -81,17 +81,49 @@ iverilog -g2012 -s tb_minirisc_autonomous -o /tmp/minirisc_assignment6_tb *.v Fa
 vvp /tmp/minirisc_assignment6_tb
 ```
 
-The testbench checks each loaded word, the accumulator progression
-`0 → 10 → 30 → 60 → 100`, data word 8, the HALT address and instruction,
-`done`, `result_out`, and stable no-write behavior.
-It writes `minirisc_autonomous.vcd`. `tb_minirisc_autonomous_timing.v` is the
-top-level testbench for the post-implementation timing simulation model.
+`tb_minirisc_autonomous.v` follows the assignment PDF's Section 13 example and
+is used for both behavioral and post-implementation timing simulation. It runs
+a 50 MHz clock (`CLK_PERIOD = 20.0`), holds reset past the 100 ns GSR pulse of
+the implemented netlist, waits for `done`, checks `result_out`, checks that both
+stay stable after HALT, and reports FAIL through a timeout if `done` never rises.
+A complete run takes about 1120 ns, longer than Vivado's default 1000 ns run
+time, so use `run all` in the Tcl console after the simulation opens.
+
+Optional testbench aliases for `pc`, `instruction` and `r3` are enabled only when
+the Verilog macro `RTL_DEBUG_PROBES` is defined. For Icarus behavioral simulation,
+add `-DRTL_DEBUG_PROBES` to the compile command. In Vivado, define it only for
+behavioral simulation and leave it undefined for post-implementation simulation.
+The default testbench references only the mandatory top-level ports, so it does
+not depend on internal RTL names surviving synthesis. To inspect PC/instruction
+in the implemented design, locate the retained signals in the simulator's
+Scopes/Objects windows; their hierarchy and names may differ from the RTL.
 
 For Vivado, set `minirisc32_top` as the design top, initialize the instruction
 ROM from `program.coe` and data BRAM from `data.coe`, and apply
-`minirisc_assignment6.xdc` (10 ns / 100 MHz). Keep the existing BRAM settings
-described above. Run synthesis and implementation, generate the post-implementation
+`minirisc_assignment6.xdc` (20 ns / 50 MHz). Keep the existing BRAM settings
+described above. Confirm in Report Timing Summary that WNS and WHS are not
+negative before running the timing simulation. Run synthesis and implementation, generate the post-implementation
 timing simulation model, then compile that model with
-`tb_minirisc_autonomous_timing.v`; the expected stable outputs are `done=1` and
+`tb_minirisc_autonomous.v`; the expected stable outputs are `done=1` and
 `result_out=32'h00000064`. Vivado implementation and timing simulation require
 the generated IP and Vivado project, which are not part of this source tree.
+
+### Why 20 ns and not 10 ns
+
+The single-cycle path from the instruction BRAM through the decoder, register
+file, ALU and branch/PC logic does not fit in 10 ns, and the Booth multiplier
+was already constrained at 16 ns on its own. A setup violation makes the timing
+simulation drive X, which then spreads through the registers. If Report Timing
+Summary still shows negative slack at 20 ns, increase the period in both the
+XDC and `CLK_PERIOD`.
+
+### Reset in the implemented netlist
+
+GSR holds every flip-flop at its INIT value for the first 100 ns of a timing
+simulation, so a shorter reset pulse on the port has no effect. If synthesis
+recodes an FSM to one-hot, the all-zero power-up state is illegal and the core
+stays stopped.
+`minirisc32_top` now keeps an internal reset asserted through GSR and for four
+clock edges afterwards, and both FSMs use `fsm_encoding = "none"` so that
+all-zero stays a legal state. In a timing simulation, R3 is normally found as
+individual `registers_reg[3][n]` bits under `dut/core/rf`.
